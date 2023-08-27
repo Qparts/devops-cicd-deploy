@@ -1,0 +1,217 @@
+version: '3'
+services:
+  q_user:
+    image: ahmedsherifmo/q_user
+    #ienv_file: .env
+    networks:
+      - q_parts
+    ports:
+      - "8080"
+    depends_on:
+      - some-postgres
+  
+  
+  q_subscriber:
+    image: ahmedsherifmo/q_subscriber
+    #env_file: cst/.env
+    ports:
+      - "8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+ 
+  q_plan:
+    image: ahmedsherifmo/q_plan
+    #env_file: cst/.env
+    ports:
+      - "8083:8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+
+  q_integration:
+    image: ahmedsherifmo/q_integration
+    #env_file: cst/.env
+    ports:
+      - "8084:8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+
+
+  q_invoice:
+    image: ahmedsherifmo/q_invoice
+    #env_file: cst/.env
+    ports:
+      - "8085:8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+
+
+
+  q_messaging:
+    image: ahmedsherifmo/q_messaging
+    #env_file: cst/.env
+    ports:
+      - "8086:8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+
+
+
+  q_location:
+    image: ahmedsherifmo/q_location
+    #env_file: cst/.env
+    ports:
+      - "8087:8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+
+
+  
+  q_customer:
+    image: ahmedsherifmo/q_customer
+    #env_file: cst/.env
+    ports:
+      - "8088:8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+
+  q_product:
+    image: ahmedsherifmo/q_product
+    #env_file: cst/.env
+    ports:
+      - "8089:8080"
+    networks:
+      - q_parts
+    depends_on:
+      - some-postgres
+
+  q_qvm_dashboard:
+    image: ahmedsherifmo/q_qvm_dashboard
+    #env_file: cst/.env
+    ports:
+      - "8998:8080"
+    networks:
+      - q_parts
+
+  some-postgres:
+    image: postgres
+    container_name: some-postgres
+    env_file: .env
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword
+    networks:
+      - q_parts
+    volumes:
+      - ./data:/var/lib/postgresql/data
+
+  qvm-admin:
+    image: ahmedsherifmo/qvm-admin
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - qvm-order:/var/www/html/qvm-order/
+      - qvm-notifications:/var/www/html/qvm-notifications/
+      - qvm-wallet:/var/www/html/qvm-wallet/
+      - qvm-front:/var/www/html/
+      - ./nginx-conf:/etc/nginx/sites-enabled
+        #- certbot-etc:/etc/letsencrypt
+        #  - ./certbot/www:/var/www/certbot/:ro
+      - ./certbot/:/etc/letsencrypt/live
+      - ./cert-ssl:/etc/letsencrypt
+        #      - word:/var/www/html
+    networks:
+      - q_parts
+  
+  qvm-notifications:
+    image: ahmedsherifmo/qvm-notifications
+    restart: unless-stopped
+    volumes:
+      - qvm-notifications:/var/www/html/qvm-notifications/
+      - ./nginx-conf:/etc/nginx/sites-enabled
+    networks:
+      - q_parts
+
+
+  qvm-wallet:
+    image: ahmedsherifmo/qvm-wallet
+    restart: unless-stopped
+    volumes:
+      - qvm-wallet:/var/www/html/qvm-wallet/
+      - ./nginx-conf:/etc/nginx/sites-enabled
+    networks:
+      - q_parts
+
+  qvm-order:
+    image: ahmedsherifmo/qvm-order
+    restart: unless-stopped
+    volumes:
+      - qvm-order:/var/www/html/qvm-order/
+      - ./nginx-conf:/etc/nginx/sites-enabled
+    networks:
+      - q_parts
+
+  q-public-api:
+    image: ahmedsherifmo/api-public
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      #- front:/usr/src/app/
+      - q-stock:/usr/src/app/ 
+      - ./nginx-conf:/etc/nginx/sites-enabled
+    networks:
+      - q_parts
+        
+  ms-router:
+    depends_on:
+      - q-public-api
+      - q_user
+      - q_subscriber
+      - q_plan
+      - q_integration
+      - q_invoice
+      - q_messaging
+      - q_location
+      - q_customer
+      - q_product
+    image: nginx:1.15.12-alpine
+    container_name: ms-router
+    restart: unless-stopped
+    ports:
+      - "8888:80"
+      - "443"
+    volumes:
+      - ./nginx-api-route:/etc/nginx/conf.d
+    networks:
+     - q_parts
+
+  
+volumes:
+  qvm-order:
+  qvm-notifications:
+  qvm-wallet:
+  qvm-front:
+  certbot-etc:
+  q-stock:
+  app-network:
+
+networks:
+  q_parts:
+    #  driver: bridge
